@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+
 use std::{error::Error, fs, io, path::Path, time::Duration};
 
 use crate::recipe::Artifact;

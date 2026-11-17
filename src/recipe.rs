@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+
 use mlua::{Lua, Table};
 use std::{cell::RefCell, error::Error, fs, path::Path, rc::Rc};
 
