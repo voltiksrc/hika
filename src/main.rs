@@ -3,6 +3,7 @@
 mod cli;
 mod commands;
 mod downloader;
+mod garden;
 mod output;
 mod recipe;
 

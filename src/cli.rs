@@ -21,6 +21,7 @@ pub enum Commands {
         packages: Vec<String>,
     },
     Transcend,
+    Reconcile,
 }
 
 pub fn preprocess_args() -> Vec<String> {
@@ -31,6 +32,7 @@ pub fn preprocess_args() -> Vec<String> {
             "-Acquire" => *command = "acquire".into(),
             "-Reacquire" => *command = "reacquire".into(),
             "-Transcend" => *command = "transcend".into(),
+            "-Reconcile" => *command = "reconcile".into(),
             _ => {}
         }
     }
@@ -52,5 +54,6 @@ pub fn run() {
         Commands::Acquire { packages } => commands::acquire(packages),
         Commands::Reacquire { packages } => commands::reacquire(packages),
         Commands::Transcend => commands::transcend(),
+        Commands::Reconcile => commands::reconcile(),
     }
 }
