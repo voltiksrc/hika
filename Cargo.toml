@@ -8,3 +8,4 @@ license = "GPL-3.0-only"
 clap = { version = "4.6.7", features = ["derive"] }
 mlua = { version = "0.12.2", features = ["lua54", "vendored"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "rustls"] }
+sha2 = "0.11.1"

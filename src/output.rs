@@ -2,18 +2,6 @@
 
 use std::io::{self, Write};
 
-// Shitty help menu
-pub fn help() {
-    println!("HIKA - binary based system manager");
-    println!("Usage: hika <command>\n");
-    println!("Options:");
-
-    print_option("-Acquire <PACKAGE>", "Install a package");
-    print_option("-Reacquire <PACKAGE>", "Reinstall a package");
-    print_option("-Transcend", "Update system packages");
-    print_option("--help", "Show this menu");
-}
-
 // TMP progress bar
 pub fn progress(percent: usize) {
     let width = 20;
