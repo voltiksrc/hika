@@ -1,23 +1,20 @@
 # hika
 
-hika is a work-in-progress Linux package manager written in Rust, using Lua for package recipes.
-
-It's mainly focused on binary packages, with plans to support building packages from source later on.
-
-The project is still in early development. It can download packages, but it can't install them yet.
+hika is a Linux package manager written in Rust that uses Lua for package recipes. It's mainly focused on binary packages, but I plan on supporting source packages later on. hika is still pretty early in development. It can currently download, verify and extract packages, but installation isn't implemented yet.
 
 ## Features
 
-Currently implemented:
 - Lua package recipes
 - Package metadata and dependency parsing
-- Binary archive downloads over HTTPS
-- Multiple download mirrors with fallback support
-- Temporary files and basic download error handling
+- Download mirror fallback
+- SHA-256 checksum verification
+- Temporary downloads
+- Native archive extraction
+- Support for `.tar`, `.tar.gz`, `.tar.xz`, `.tar.bz2`, `.tar.zst` and `.deb`
 
 ## Building
 
-You'll need Rust and Cargo.
+Make sure you have Rust and Cargo installed.
 
 ```sh
 git clone https://github.com/voltiksrc/hika.git
@@ -25,30 +22,30 @@ cd hika
 cargo build --release
 ```
 
-The compiled binary will be at `target/release/hika`.
+The binary will be located at `target/release/hika`.
 
 ## Usage
 
-hika currently reads recipes from the local `recipe/` directory.
+For now, hika reads package recipes from the local `recipe/` directory.
 
 ```sh
 cargo run -- -Acquire hello
 ```
 
-Available commands:
+### Commands
 
 | Command | Description |
 | --- | --- |
 | `-Acquire <packages...>` | Acquire packages |
-| `-Reacquire <packages...>` | Reacquire packages (not implemented) |
-| `-Transcend` | Update packages (not implemented) |
-| `--help` | Show help |
+| `-Reacquire <packages...>` | Reacquire packages (WIP) |
+| `-Transcend` | Update packages (WIP) |
+| `--help` | Show available commands |
 
-For now, `-Acquire` only loads the recipe and downloads its archive. No files are installed.
+Currently, `-Acquire` only loads the package recipe, downloads the archive and verifies its checksum. Extraction hasn't been integrated into the command yet.
 
 ## Package recipes
 
-Packages are described using Lua.
+Here's what a basic package recipe looks like:
 
 ```lua
 pkg {
@@ -70,8 +67,16 @@ pkg {
 }
 ```
 
-Recipes are currently stored in `recipe/<package>/package.lua`.
+Recipes are stored in `recipe/<package>/package.lua`.
+
+## Plans
+
+- Dependency resolution
+- Package installation and removal
+- Installed package tracking
+- Package repositories
+- Source packages
 
 ## License
 
-hika is licensed under the GNU General Public License version 3.0 (GPL-3.0-only). See [LICENSE](LICENSE) for the full license text.
+hika is licensed under GPL-3.0-only. See [LICENSE](LICENSE).
