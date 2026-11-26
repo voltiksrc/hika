@@ -5,7 +5,13 @@ edition = "2024"
 license = "GPL-3.0-only"
 
 [dependencies]
+ar = "0.9.0"
+bzip2 = "0.6.1"
 clap = { version = "4.6.7", features = ["derive"] }
+flate2 = "1.1.11"
 mlua = { version = "0.12.2", features = ["lua54", "vendored"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "rustls"] }
 sha2 = "0.11.1"
+tar = "0.4.46"
+xz2 = "0.1.7"
+zstd = "0.14.5"

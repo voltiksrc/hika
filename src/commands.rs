@@ -5,25 +5,23 @@ use std::path::Path;
 use crate::{
     downloader, garden,
     garden::reconcile::{self, Change},
-    output, recipe,
+    output, paths, recipe,
 };
 
 pub fn acquire(packages: Vec<String>) {
     for package in packages {
-        let path = format!("recipe/{package}/package.lua");
+        let path = paths::recipe(&package);
 
         // Load the recipe before doing anything with the package.
         output::begin(&format!("Loading recipe for {package}"));
 
-        match recipe::load_recipe(Path::new(&path)) {
+        match recipe::load_recipe(&path) {
             Ok(package) => {
                 output::end(true);
-                output::info(&format!("Loaded {} {}", package.name, package.version));
-
-                // Temporarily add some printing
-                output::info(&format!("Description: {}", package.description));
-                output::info(&format!("Runtime dependencies: {:?}", package.runtime_deps));
-                output::info(&format!("Artifacts: {}", package.artifacts.len()));
+                output::info(&format!(
+                    "Loaded recipe for {} {}",
+                    package.name, package.version
+                ));
 
                 // Use the first artifact and its primary download URL for now.
                 if let Some(artifact) = package.artifacts.first()
@@ -32,9 +30,9 @@ pub fn acquire(packages: Vec<String>) {
                     output::info(&format!("Selected download URL: {url}"));
 
                     let filename = format!("{}-{}.deb", package.name, package.version);
-                    let destination = Path::new("downloads").join(filename);
+                    let destination = paths::downloads().join(filename);
 
-                    if let Err(err) = std::fs::create_dir_all("downloads") {
+                    if let Err(err) = std::fs::create_dir_all(paths::downloads()) {
                         output::error(&format!("Failed to create downloads directory: {err}"));
                         continue;
                     }
