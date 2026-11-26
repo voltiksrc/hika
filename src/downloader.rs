@@ -2,8 +2,42 @@
 
 use std::{error::Error, fs, io, path::Path, time::Duration};
 
-use crate::checksum::verify_sha256;
-use crate::recipe::Artifact;
+use crate::{checksum::verify_sha256, output, recipe::Artifact};
+
+// Handles the file transfer independently of verification and finalization.
+fn fetch(client: &reqwest::blocking::Client, url: &str, temp: &Path) -> Result<(), Box<dyn Error>> {
+    let url = reqwest::Url::parse(url).map_err(|err| format!("Invalid URL: {err}"))?;
+
+    // Reject unencrypted connections before sending a request.
+    if url.scheme() != "https" {
+        return Err("Only HTTPS URLs are supported".into());
+    }
+
+    let mut response = client.get(url).send()?.error_for_status()?;
+
+    // create_new prevents accidentally overwriting an existing temporary file.
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(temp)?;
+
+    // Stream the response directly to disk instead of storing the entire
+    // archive in memory, which could be expensive for large packages.
+    if let Err(err) = io::copy(&mut response, &mut file) {
+        drop(file);
+        let _ = fs::remove_file(temp);
+        return Err(err.into());
+    }
+
+    // Flush file contents and metadata to disk before verification.
+    if let Err(err) = file.sync_all() {
+        drop(file);
+        let _ = fs::remove_file(temp);
+        return Err(err.into());
+    }
+
+    Ok(())
+}
 
 pub fn download_from_url(
     client: &reqwest::blocking::Client,
@@ -13,41 +47,27 @@ pub fn download_from_url(
 ) -> Result<(), Box<dyn Error>> {
     let temp = destination.with_added_extension("tmp");
 
-    // Validate the URL before attempting a download.
-    let url = reqwest::Url::parse(url).map_err(|err| format!("Invalid URL: {err}"))?;
+    output::begin("Downloading archive");
 
-    if url.scheme() != "https" {
-        return Err("Only HTTPS URLs are supported".into());
-    }
+    let result = fetch(client, url, &temp);
 
-    let mut response = client.get(url).send()?.error_for_status()?;
+    // Finish the status line before propagating any transfer errors.
+    output::end(result.is_ok());
+    result?;
 
-    // Write to a temp file so incomplete downloads aren't treated as finished.
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temp)?;
+    output::begin("Verifying SHA256");
 
-    if let Err(err) = io::copy(&mut response, &mut file) {
-        drop(file);
-        let _ = fs::remove_file(&temp);
-        return Err(err.into());
-    }
+    let result = verify_sha256(&temp, expected_hash);
 
-    // Make sure everything is written before moving it to its final path.
-    if let Err(err) = file.sync_all() {
-        drop(file);
-        let _ = fs::remove_file(&temp);
-        return Err(err.into());
-    }
+    output::end(result.is_ok());
 
-    drop(file);
-    if let Err(err) = verify_sha256(&temp, expected_hash) {
+    // Discard invalid archives so the next mirror can retry the download.
+    if let Err(err) = result {
         let _ = fs::remove_file(&temp);
         return Err(err);
     }
 
-    // If it fails to rename the temporary file, remove it.
+    // Only expose the archive at its final path after verification succeeds.
     if let Err(err) = fs::rename(&temp, destination) {
         let _ = fs::remove_file(&temp);
         return Err(err.into());
@@ -59,7 +79,7 @@ pub fn download_from_url(
 pub fn download(artifact: &Artifact, destination: &Path) -> Result<(), Box<dyn Error>> {
     let temp = destination.with_added_extension("tmp");
 
-    // Don't overwrite an existing download or leftover temp file.
+    // Avoid overwriting existing archives or leftover temporary downloads.
     if destination.exists() || temp.exists() {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
@@ -68,10 +88,12 @@ pub fn download(artifact: &Artifact, destination: &Path) -> Result<(), Box<dyn E
         .into());
     }
 
+    // Reuse the same HTTP client across all mirror attempts.
     let client = reqwest::blocking::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(120))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            // Prevent redirect loops and HTTPS-to-HTTP downgrades.
             if attempt.previous().len() >= 10 {
                 attempt.error("Too many redirects")
             } else if attempt.url().scheme() != "https" {
@@ -84,6 +106,8 @@ pub fn download(artifact: &Artifact, destination: &Path) -> Result<(), Box<dyn E
 
     let mut errors = Vec::new();
 
+    // Try mirrors in recipe order until an archive is successfully
+    // downloaded, verified and moved to its final destination.
     for url in &artifact.urls {
         match download_from_url(&client, url, destination, &artifact.sha256) {
             Ok(()) => return Ok(()),
@@ -93,5 +117,7 @@ pub fn download(artifact: &Artifact, destination: &Path) -> Result<(), Box<dyn E
         }
     }
 
+    // Preserve errors from every mirror to make download failures
+    // easier to diagnose.
     Err(format!("All download mirrors failed\n  {}", errors.join("\n  ")).into())
 }

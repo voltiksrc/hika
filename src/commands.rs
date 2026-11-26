@@ -37,14 +37,9 @@ pub fn acquire(packages: Vec<String>) {
                         continue;
                     }
 
-                    output::begin(&format!("Downloading {}", package.name));
-
-                    match downloader::download(artifact, &destination) {
-                        Ok(()) => output::end(true),
-                        Err(err) => {
-                            output::end(false);
-                            output::error(&format!("Download failed: {err}"));
-                        }
+                    if let Err(err) = downloader::download(artifact, &destination) {
+                        output::error(&format!("Download failed: {err}"));
+                        continue;
                     }
                 }
 
