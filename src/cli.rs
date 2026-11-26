@@ -21,7 +21,7 @@ pub enum Commands {
     /// Update installed packages
     Transcend,
 
-    /// Reconcile system configuration with garden
+    /// Rebuild system configuration with garden
     Reconcile,
 }
 
