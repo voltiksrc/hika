@@ -2,12 +2,14 @@
 
 use std::{error::Error, fs, io, path::Path, time::Duration};
 
+use crate::checksum::verify_sha256;
 use crate::recipe::Artifact;
 
 pub fn download_from_url(
     client: &reqwest::blocking::Client,
     url: &str,
     destination: &Path,
+    expected_hash: &str,
 ) -> Result<(), Box<dyn Error>> {
     let temp = destination.with_added_extension("tmp");
 
@@ -40,6 +42,10 @@ pub fn download_from_url(
     }
 
     drop(file);
+    if let Err(err) = verify_sha256(&temp, expected_hash) {
+        let _ = fs::remove_file(&temp);
+        return Err(err);
+    }
 
     // If it fails to rename the temporary file, remove it.
     if let Err(err) = fs::rename(&temp, destination) {
@@ -76,14 +82,16 @@ pub fn download(artifact: &Artifact, destination: &Path) -> Result<(), Box<dyn E
         }))
         .build()?;
 
+    let mut errors = Vec::new();
+
     for url in &artifact.urls {
-        match download_from_url(&client, url, destination) {
+        match download_from_url(&client, url, destination, &artifact.sha256) {
             Ok(()) => return Ok(()),
             Err(err) => {
-                crate::output::warn(&format!("Mirror {url} failed: {err}"));
+                errors.push(format!("Mirror {url} failed: {err}"));
             }
         }
     }
 
-    Err("All download mirrors failed".into())
+    Err(format!("All download mirrors failed\n  {}", errors.join("\n  ")).into())
 }
