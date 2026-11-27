@@ -5,6 +5,7 @@ mod archive;
 mod checksum;
 mod cli;
 mod commands;
+mod conflict;
 mod downloader;
 mod garden;
 mod output;
