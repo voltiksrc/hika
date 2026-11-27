@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod acquire;
 mod archive;
 mod checksum;
 mod cli;

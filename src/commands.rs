@@ -3,68 +3,15 @@
 use std::path::Path;
 
 use crate::{
-    archive, downloader, garden,
+    acquire, garden,
     garden::reconcile::{self, Change},
-    output, paths, recipe,
+    output,
 };
 
 pub fn acquire(packages: Vec<String>) {
     for package in packages {
-        let path = paths::recipe(&package);
-
-        // Load the recipe before doing anything with the package.
-        output::begin(&format!("Loading recipe for {package}"));
-
-        match recipe::load_recipe(&path) {
-            Ok(package) => {
-                output::end(true);
-                output::info(&format!(
-                    "Loaded recipe for {} {}",
-                    package.name, package.version
-                ));
-
-                // Use the first artifact and its primary download URL for now.
-                if let Some(artifact) = package.artifacts.first()
-                    && let Some(url) = artifact.urls.first()
-                {
-                    output::info(&format!("Selected download URL: {url}"));
-
-                    let filename = format!("{}-{}.deb", package.name, package.version);
-                    let destination = paths::downloads().join(filename);
-
-                    if let Err(err) = std::fs::create_dir_all(paths::downloads()) {
-                        output::error(&format!("Failed to create downloads directory: {err}"));
-                        continue;
-                    }
-
-                    if let Err(err) = downloader::download(artifact, &destination) {
-                        output::error(&format!("Download failed: {err}"));
-                        continue;
-                    }
-
-                    // Construct the staging path using package metadata
-                    let staging =
-                        paths::staging().join(format!("{}-{}", package.name, package.version));
-
-                    output::begin(&format!("Extracting {}-{}", package.name, package.version));
-
-                    let result = archive::extract(&destination, &staging);
-
-                    output::end(result.is_ok());
-
-                    if let Err(err) = result {
-                        output::error(&format!("Extraction failed: {err}"));
-                        continue;
-                    }
-                }
-
-                //output::info(&format!("Acquiring {}", package.name));
-            }
-            Err(err) => {
-                output::end(false);
-                output::error(&format!("Failed to load {package}: {err}"));
-                continue;
-            }
+        if let Err(err) = crate::acquire::acquire_package(&package) {
+            output::error(&format!("Failed to acquire {package}: {err}"));
         }
     }
 }
