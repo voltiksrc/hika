@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::{
-    downloader, garden,
+    archive, downloader, garden,
     garden::reconcile::{self, Change},
     output, paths, recipe,
 };
@@ -39,6 +39,21 @@ pub fn acquire(packages: Vec<String>) {
 
                     if let Err(err) = downloader::download(artifact, &destination) {
                         output::error(&format!("Download failed: {err}"));
+                        continue;
+                    }
+
+                    // Construct the staging path using package metadata
+                    let staging =
+                        paths::staging().join(format!("{}-{}", package.name, package.version));
+
+                    output::begin(&format!("Extracting {}-{}", package.name, package.version));
+
+                    let result = archive::extract(&destination, &staging);
+
+                    output::end(result.is_ok());
+
+                    if let Err(err) = result {
+                        output::error(&format!("Extraction failed: {err}"));
                         continue;
                     }
                 }
