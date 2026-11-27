@@ -55,7 +55,7 @@ pub fn download_from_url(
     output::end(result.is_ok());
     result?;
 
-    output::begin("Verifying SHA256");
+    output::begin("Verifying sha256");
 
     let result = verify_sha256(&temp, expected_hash);
 
@@ -80,12 +80,29 @@ pub fn download(artifact: &Artifact, destination: &Path) -> Result<(), Box<dyn E
     let temp = destination.with_added_extension("tmp");
 
     // Avoid overwriting existing archives or leftover temporary downloads.
-    if destination.exists() || temp.exists() {
+    if temp.exists() {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
-            "Output or temporary file already exists",
+            "temporary file already exists",
         )
         .into());
+    }
+
+    if destination.exists() {
+        output::info("Found cached archive");
+        output::begin("Verifying sha256");
+
+        let result = verify_sha256(destination, &artifact.sha256);
+
+        output::end(result.is_ok());
+
+        match result {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                output::warn(&format!("Cached archive verification failed: {err}"));
+                fs::remove_file(destination)?;
+            }
+        }
     }
 
     // Reuse the same HTTP client across all mirror attempts.
