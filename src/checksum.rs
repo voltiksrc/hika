@@ -28,7 +28,7 @@ pub fn verify_sha256(path: &Path, expected: &str) -> Result<(), Box<dyn Error>> 
 
     if !hash.eq_ignore_ascii_case(expected) {
         return Err(format!(
-            "SHA256 checksum mismatch\n    Expected: {expected}\n    Received: {hash}"
+            "SHA256 checksum mismatch\n    Expected: {expected}\n    Calculated: {hash}"
         )
         .into());
     }
