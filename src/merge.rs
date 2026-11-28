@@ -13,16 +13,45 @@ pub struct Merge {
     pub directories: Vec<PathBuf>,
 }
 
+fn rollback(root: &Path, deployment: &Merge) -> Result<(), Box<dyn Error>> {
+    // Remove installed files first
+    for relative in deployment.files.iter().rev() {
+        let destination = root.join(relative);
+
+        fs::remove_file(destination)?;
+    }
+
+    // Remove newly created directories from deepest to shallowest
+    for relative in deployment.directories.iter().rev() {
+        let destination = root.join(relative);
+
+        fs::remove_dir(destination)?;
+    }
+
+    Ok(())
+}
+
 pub fn merge(staging: &Path, root: &Path) -> Result<Merge, Box<dyn Error>> {
-    let mut deploymernt = Merge::default();
+    let mut deployment = Merge::default();
 
-    /// merge_entries takes 4 parameters, the first staging parameter is the original staging
-    /// directory which never changes. The second staging parameter is the directory we're currently traversing.
-    /// The third parameter is of course, the root of the filesystem which is our installation destination.
-    /// The 4th parameter is the recorded files and directories shared across recursive calls which we will use for rollbacks.
-    merge_entries(staging, staging, root, &mut deployment)?;
+    // merge_entries takes 4 parameters, the first staging parameter is the original staging
+    // directory which never changes. The second staging parameter is the directory we're currently traversing.
+    // The third parameter is of course, the root of the filesystem which is our installation destination.
+    // The 4th parameter is the recorded files and directories shared across recursive calls which we will use for rollbacks.
+    match merge_entries(staging, staging, root, &mut deployment) {
+        Ok(()) => Ok(deployment),
 
-    Ok(deployment)
+        Err(err) => {
+            // Undo any changes made before the merge failed
+            if let Err(rollback_err) = rollback(root, &deployment) {
+                return Err(
+                    format!("merge failed: {}; rollback failed: {}", err, rollback_err).into(),
+                );
+            }
+
+            Err(err)
+        }
+    }
 }
 
 fn merge_entries(
