@@ -14,7 +14,7 @@ pub fn check_conflicts(staging: &Path, root: &Path) -> Result<(), Box<dyn Error>
 
         match fs::symlink_metadata(&destination) {
             Ok(metadata) => {
-                if !(source_metadata.is_dir() && metadata.is_dir()) {
+                if !source_metadata.is_dir() && metadata.is_dir() {
                     return Err(format!("file conflict: {}", destination.display()).into());
                 }
             }
