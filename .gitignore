@@ -5,4 +5,6 @@
 *.tmp
 *.tar
 *.tar.*
-/test*/
+/test-files/
+/test.tar
+/test.tar.*
